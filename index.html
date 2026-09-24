@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="theme-color" content="#060E5C">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cell Counter">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<title>Hemocytometer Cell Counter — clRNA Therapeutics</title>
+<style>
+  :root{
+    --blue:#0000FF;
+    --cyan:#00CCFF;
+    --navy:#060E5C;
+    --ink:#0F173C;
+    --muted:#64748B;
+    --line:#DAE2F0;
+    --page:#F3F6FB;
+    --warn:#B4380B;
+    --ok:#0B7A3E;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--page);
+    color:var(--ink);
+    font:16px/1.5 "Segoe UI",system-ui,sans-serif;
+  }
+  header{background:var(--navy);color:#fff;padding:22px 28px 18px}
+  header h1{margin:0;font-size:22px;font-weight:600;letter-spacing:.2px}
+  header p{margin:4px 0 0;color:#A9C6FF;font-size:13.5px}
+  .accent{height:4px;background:var(--cyan)}
+  main{max-width:960px;margin:0 auto;padding:26px 20px 60px}
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:20px 22px;margin-bottom:18px;
+  }
+  .card h2{
+    margin:0 0 14px;font-size:14px;font-weight:600;color:var(--blue);
+  }
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px 18px}
+  label{display:block;font-size:13.5px;color:var(--muted);margin-bottom:5px}
+  input,select{
+    width:100%;padding:9px 11px;font:inherit;font-size:15px;color:var(--ink);
+    border:1px solid var(--line);border-radius:7px;background:#fff;
+  }
+  input:focus-visible,select:focus-visible,button:focus-visible{
+    outline:2px solid var(--blue);outline-offset:2px;
+  }
+  .check{display:flex;align-items:center;gap:9px;margin:0}
+  .check input{width:17px;height:17px;margin:0}
+  .check span{color:var(--ink);font-size:15px}
+  .hint{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+  button{
+    font:inherit;font-weight:600;font-size:15px;padding:11px 20px;
+    border-radius:8px;border:0;cursor:pointer;
+  }
+  .primary{background:var(--blue);color:#fff}
+  .primary:hover{background:#2323ff}
+  .secondary{background:var(--cyan);color:var(--navy)}
+  .secondary:hover{background:#6EE2FF}
+  .secondary[disabled]{background:#E3EAF3;color:#9AA7BC;cursor:default}
+  #error{
+    display:none;margin-bottom:18px;padding:12px 16px;border-radius:9px;
+    background:#FFF1EA;border:1px solid #F3C4AC;color:var(--warn);font-size:14.5px;
+  }
+  #results{display:none}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  td{padding:7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  td:first-child{color:var(--muted);width:56%}
+  td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:0}
+  .headline{
+    background:linear-gradient(90deg,#E8F9FF,#F6FCFF);
+    border:1px solid #BEE9F8;border-radius:10px;padding:16px 18px;margin-bottom:16px;
+  }
+  .headline .big{font-size:30px;font-weight:600;color:var(--blue);font-variant-numeric:tabular-nums}
+  .headline .lab{font-size:13px;color:var(--muted)}
+  .headline .row{display:flex;flex-wrap:wrap;gap:28px}
+  pre{
+    background:#fff;border:1px solid var(--line);border-radius:9px;padding:14px 16px;
+    font:13.5px/1.6 Consolas,ui-monospace,monospace;white-space:pre-wrap;margin:0;color:var(--ink);
+  }
+  .status-banner{
+    display:inline-block;font-weight:700;font-size:13.5px;letter-spacing:.03em;
+    padding:9px 14px;border-radius:8px;margin-bottom:14px;
+  }
+  .status-ok{background:#E6F9EE;border:1px solid #A6E9C2;color:var(--ok)}
+  .status-bad{background:#FFF1EA;border:1px solid #F3C4AC;color:var(--warn)}
+  @media (max-width:520px){header{padding:18px 18px 14px}main{padding:18px 14px 50px}}
+  @media print{
+    body *{visibility:hidden}
+    #printArea, #printArea *{visibility:visible}
+    #printArea{position:absolute;left:0;top:0;width:100%;display:block !important}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Hemocytometer cell counter</h1>
+  <p>clRNA Therapeutics &nbsp;·&nbsp; Cell Culture</p>
+</header>
+<div class="accent"></div>
+
+<main>
+  <div id="error"></div>
+
+  <div class="card">
+    <h2>Step 1 — Cell counts</h2>
+    <div class="grid">
+      <div>
+        <label for="grids">Grids counted</label>
+        <select id="grids">
+          <option>1</option><option>2</option><option>3</option><option selected>4</option>
+        </select>
+      </div>
+      <div>
+        <label for="viable">Viable (live) cells counted across all grids</label>
+        <input id="viable" type="number" min="0" step="1" value="">
+      </div>
+      <div>
+        <label for="dead">Dead cells counted across all grids</label>
+        <input id="dead" type="number" min="0" step="1" value="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Step 2 — Resuspension volume and dilution</h2>
+    <div class="grid">
+      <div>
+        <label for="resusp">Volume cells are resuspended in (mL)</label>
+        <input id="resusp" type="number" min="0" step="any" value="">
+      </div>
+      <div>
+        <label for="dilution">Dilution factor</label>
+        <input id="dilution" type="number" min="0" step="any" value="2">
+        <p class="hint">2 for 1:1 trypan blue, 1 if undiluted.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Step 3 — Dilute to a target seeding density (optional)</h2>
+    <label class="check">
+      <input id="doSeed" type="checkbox">
+      <span>Calculate how much stock and media to mix</span>
+    </label>
+    <div class="grid" id="seedFields" style="margin-top:14px;display:none">
+      <div>
+        <label for="density">Desired final density (cells/mL)</label>
+        <input id="density" type="number" min="0" step="any" value="">
+      </div>
+      <div>
+        <label for="finalVol">Desired final total volume (mL)</label>
+        <input id="finalVol" type="number" min="0" step="any" value="">
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="calc">Calculate</button>
+    <button class="secondary" id="copy" disabled>Copy report</button>
+    <button class="secondary" id="save" disabled>Save report (.txt)</button>
+    <button class="secondary" id="print" disabled>Print report</button>
+  </div>
+
+  <div id="results" style="margin-top:22px">
+    <div class="headline">
+      <div class="row">
+        <div>
+          <div class="big" id="hConc">—</div>
+          <div class="lab">viable cell conc./mL</div>
+        </div>
+        <div>
+          <div class="big" id="hYield">—</div>
+          <div class="lab">total viable cells</div>
+        </div>
+        <div>
+          <div class="big" id="hViab">—</div>
+          <div class="lab">viability</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Cell count results</h2>
+      <table id="countTable"></table>
+    </div>
+
+    <div class="card" id="recipeCard" style="display:none">
+      <h2>Dilution recipe</h2>
+      <div id="recipeStatus"></div>
+      <div id="recipe"></div>
+    </div>
+
+    <div class="card">
+      <h2>Report</h2>
+      <pre id="report"></pre>
+      <p class="hint">Save the report into your Cell Count and Seeding Results folder so it shows up in the Results tab of the app.</p>
+    </div>
+  </div>
+
+  <!-- Hidden printable copy of the report, used only by the Print button -->
+  <div id="printArea" style="display:none">
+    <pre id="printReport"></pre>
+  </div>
+</main>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const COMMON_MIN_UL = 100;       // comfortable minimum volume per intermediate step
+  let reportText = "";
+
+  $("doSeed").addEventListener("change", e => {
+    $("seedFields").style.display = e.target.checked ? "" : "none";
+  });
+
+  function fmtSci(v) {
+    if (!isFinite(v) || v === 0) return "0.00 x 10^0";
+    let exp = Math.floor(Math.log10(Math.abs(v)));
+    let mant = v / Math.pow(10, exp);
+    if (Number(mant.toFixed(2)) >= 10) { mant /= 10; exp++; }
+    return mant.toFixed(2) + " x 10^" + exp;
+  }
+
+  function showError(msg) {
+    const box = $("error");
+    box.textContent = msg;
+    box.style.display = "block";
+    box.scrollIntoView({ block: "nearest" });
+    $("results").style.display = "none";
+    $("copy").disabled = $("save").disabled = $("print").disabled = true;
+  }
+
+  function readInt(id, name) {
+    const raw = $(id).value.trim();
+    if (!/^\d+$/.test(raw)) throw new Error(name + " must be a whole number of 0 or greater.");
+    return parseInt(raw, 10);
+  }
+
+  function readPositive(id, name) {
+    const v = parseFloat($(id).value);
+    if (!isFinite(v) || v <= 0) throw new Error(name + " must be a positive number.");
+    return v;
+  }
+
+  function rows(table, data) {
+    table.innerHTML = data
+      .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
+      .join("");
+  }
+
+  function esc(s) { return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+  $("calc").addEventListener("click", function () {
+    try {
+      $("error").style.display = "none";
+
+      const grids = parseInt($("grids").value, 10);
+      const viable = readInt("viable", "Viable cell count");
+      const dead = readInt("dead", "Dead cell count");
+      const total = viable + dead;
+      if (total === 0) throw new Error("Total counted cells is zero — concentration and viability cannot be calculated.");
+
+      const resusp = readPositive("resusp", "Resuspension volume");
+      const dilution = readPositive("dilution", "Dilution factor");
+
+      const viability = (viable / total) * 100;
+      const avgViable = viable / grids;
+      const avgTotal = total / grids;
+      const viableConc = avgViable * dilution * 10000;
+      const totalConc = avgTotal * dilution * 10000;
+      const viableYield = viableConc * resusp;
+      const totalYield = totalConc * resusp;
+
+      $("hConc").textContent = fmtSci(viableConc).replace(" x 10^", " × 10^");
+      $("hYield").textContent = fmtSci(viableYield).replace(" x 10^", " × 10^");
+      $("hViab").textContent = viability.toFixed(2) + " %";
+
+      rows($("countTable"), [
+        ["Grids counted", grids],
+        ["Viable cells counted", viable],
+        ["Dead cells counted", dead],
+        ["Total cells counted", total],
+        ["Viability", viability.toFixed(2) + " %"],
+        ["Avg viable cells / grid", avgViable.toFixed(2)],
+        ["Avg total cells / grid", avgTotal.toFixed(2)],
+        ["Dilution factor used", dilution],
+        ["Resuspension volume", resusp + " mL"],
+        ["Viable cell concentration", fmtSci(viableConc) + " cells/mL"],
+        ["Total cell concentration", fmtSci(totalConc) + " cells/mL"],
+        ["Viable cell yield", fmtSci(viableYield) + " cells"],
+        ["Total cell yield", fmtSci(totalYield) + " cells"]
+      ]);
+
+      // ---- Seeding / dilution ----
+      const seedingLines = [];
+      let statusLine = "";       // plain-text line for the saved/printed report
+      let statusHtml = "";       // banner shown in the recipe card
+
+      if ($("doSeed").checked) {
+        const target = readPositive("density", "Desired final density");
+        const finalVol = readPositive("finalVol", "Desired final total volume");
+        const targetTotalCells = target * finalVol;
+        const stockVolMl = targetTotalCells / viableConc;
+        // Primary sufficiency check: do we have enough TOTAL viable cells overall,
+        // not just enough concentration for this one dilution.
+        const hasEnoughCells = viableYield >= targetTotalCells;
+        const insufficient = !hasEnoughCells;
+
+        statusLine = "STATUS: " + (insufficient ? "INSUFFICIENT CELL CONC." : "PROCEED WITH EXPERIMENT");
+        statusHtml = '<div class="status-banner ' + (insufficient ? "status-bad" : "status-ok") + '">' +
+          (insufficient ? "INSUFFICIENT CELL CONC." : "PROCEED WITH EXPERIMENT") + '</div>';
+
+        if (insufficient) {
+          seedingLines.push(
+            "Total Viable Cells Available            : " + fmtSci(viableYield) + "  cells",
+            "Desired Total Cells for the Experiment  : " + fmtSci(targetTotalCells) + "  cells",
+            "",
+            "Your total viable cell yield is lower than what this experiment requires.",
+            "Consider growing/harvesting more cells, lowering the target density, or",
+            "reducing the desired final volume."
+          );
+        } else if (stockVolMl > finalVol) {
+          // Enough total cells, but the current concentration is too dilute to hit the
+          // target density by simple dilution within the requested final volume.
+          seedingLines.push(
+            "Total Viable Cells Available            : " + fmtSci(viableYield) + "  cells",
+            "Desired Total Cells for the Experiment  : " + fmtSci(targetTotalCells) + "  cells",
+            "",
+            "You have enough total viable cells, but the current stock concentration",
+            "(" + fmtSci(viableConc) + " cells/mL) is too dilute to reach the target density",
+            "by adding media alone within " + finalVol + " mL.",
+            "Centrifuge the stock and resuspend the pellet in a smaller volume to",
+            "concentrate it, then top up to the final volume with fresh media."
+          );
+        } else {
+          const df = viableConc / target;
+          if (df <= 5) {
+            const media = finalVol - stockVolMl;
+            seedingLines.push(
+              "Total Viable Cells Available            : " + fmtSci(viableYield) + "  cells",
+              "Desired Final Density                   : " + fmtSci(target) + "  cells/mL",
+              "Desired Final Volume                    : " + finalVol + " mL",
+              "Desired Total Cells for the Experiment  : " + fmtSci(targetTotalCells) + "  cells",
+              "Stock Volume to Add                     : " + stockVolMl.toFixed(4) + " mL (" + (stockVolMl * 1000).toFixed(2) + " uL)",
+              "Fresh Media to Add                      : " + media.toFixed(4) + " mL (" + (media * 1000).toFixed(2) + " uL)"
+            );
+          } else {
+            const n = Math.ceil(Math.log(df) / Math.log(5));
+            const f = Math.pow(df, 1 / n);
+            const vols = new Array(n + 1).fill(0);
+            vols[n] = finalVol * 1000;
+            for (let i = n - 1; i >= 1; i--) vols[i] = Math.max(vols[i + 1] / f, COMMON_MIN_UL);
+
+            seedingLines.push(
+              "Total Viable Cells Available            : " + fmtSci(viableYield) + "  cells",
+              "Desired Total Cells for the Experiment  : " + fmtSci(targetTotalCells) + "  cells",
+              "",
+              "Required overall dilution: " + df.toFixed(2) + "x - too steep for one accurate pipetting",
+              "step, so a " + n + "-step serial dilution (~1:" + f.toFixed(2) + " per step) is used:",
+              ""
+            );
+
+            let prevConc = viableConc;
+            for (let i = 1; i <= n; i++) {
+              const totalVol = vols[i];
+              const aliquot = totalVol / f;
+              const diluent = totalVol - aliquot;
+              const newConc = prevConc / f;
+              const source = i === 1 ? "original stock" : "Intermediate " + (i - 1);
+              if (i === n) {
+                seedingLines.push(
+                  "Step " + i + " (FINAL): Take " + aliquot.toFixed(2) + " uL of " + source + " + " + diluent.toFixed(2) + " uL media",
+                  "  -> " + (totalVol / 1000).toFixed(2) + " mL final suspension at " + fmtSci(newConc) + "  cells/mL (target density)."
+                );
+              } else {
+                seedingLines.push(
+                  "Step " + i + ": Take " + aliquot.toFixed(2) + " uL of " + source + " + " + diluent.toFixed(2) + " uL media",
+                  "  -> " + totalVol.toFixed(2) + " uL of Intermediate " + i + " at " + fmtSci(newConc) + "  cells/mL."
+                );
+              }
+              prevConc = newConc;
+            }
+          }
+        }
+
+        $("recipeCard").style.display = "";
+        $("recipeStatus").innerHTML = statusHtml;
+        $("recipe").innerHTML = seedingLines.length
+          ? '<pre>' + esc(seedingLines.join("\n")) + '</pre>'
+          : "";
+      } else {
+        $("recipeCard").style.display = "none";
+        $("recipeStatus").innerHTML = "";
+      }
+
+      // ---- Report text (same layout as the original summary file) ----
+      const stamp = new Date();
+      const pad = n => String(n).padStart(2, "0");
+      const human = stamp.getFullYear() + "-" + pad(stamp.getMonth() + 1) + "-" + pad(stamp.getDate()) +
+                    " " + pad(stamp.getHours()) + ":" + pad(stamp.getMinutes()) + ":" + pad(stamp.getSeconds());
+
+      const lines = [
+        "HEMOCYTOMETER CELL COUNT & SEEDING SUMMARY",
+        "Generated: " + human,
+        "====================================================================",
+        "",
+        "CELL COUNT",
+        "--------------------------------------------------------------------",
+        "Grids Counted             : " + grids,
+        "Viable Cells Counted      : " + viable,
+        "Dead Cells Counted        : " + dead,
+        "Total Cells Counted       : " + total,
+        "Viability                 : " + viability.toFixed(2) + " %",
+        "Avg Viable Cells / Grid   : " + avgViable.toFixed(2),
+        "Avg Total Cells / Grid    : " + avgTotal.toFixed(2),
+        "Dilution Factor Used      : " + dilution,
+        "Resuspension Volume       : " + resusp + " mL",
+        "Viable Cell Conc.         : " + fmtSci(viableConc) + " cells/mL",
+        "Total Cell Concentration  : " + fmtSci(totalConc) + " cells/mL",
+        "Viable Cell Yield         : " + fmtSci(viableYield) + " cells",
+        "Total Cell Yield          : " + fmtSci(totalYield) + " cells",
+        ""
+      ];
+      if (seedingLines.length) {
+        lines.push("SEEDING / DILUTION",
+                   "--------------------------------------------------------------------",
+                   statusLine, "",
+                   ...seedingLines, "");
+      }
+      reportText = lines.join("\r\n");
+      $("report").textContent = reportText;
+
+      $("results").style.display = "block";
+      $("copy").disabled = $("save").disabled = $("print").disabled = false;
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  $("copy").addEventListener("click", async function () {
+    try {
+      await navigator.clipboard.writeText(reportText);
+      this.textContent = "Copied";
+      setTimeout(() => { this.textContent = "Copy report"; }, 1500);
+    } catch {
+      showError("Copying failed. Select the report text and press Ctrl+C instead.");
+    }
+  });
+
+  $("save").addEventListener("click", function () {
+    const stamp = new Date();
+    const pad = n => String(n).padStart(2, "0");
+    const name = "CellCount_" + stamp.getFullYear() + pad(stamp.getMonth() + 1) + pad(stamp.getDate()) +
+                 "_" + pad(stamp.getHours()) + pad(stamp.getMinutes()) + pad(stamp.getSeconds()) + ".txt";
+    const blob = new Blob([reportText], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+
+  $("print").addEventListener("click", function () {
+    $("printReport").textContent = reportText;
+    window.print();
+  });
+})();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
